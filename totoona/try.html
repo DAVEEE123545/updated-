@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Facility Reservation Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Basic styles */
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f2f2f2;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            color: #007bff;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+
+        .chart-container {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 300px;
+            margin-top: 20px;
+            position: relative;
+        }
+
+        .bar {
+            width: 100px;
+            border-radius: 5px;
+            position: relative;
+            transition: height 0.3s ease, background-color 0.3s ease;
+            cursor: pointer;
+        }
+
+        .bar span {
+            position: absolute;
+            bottom: 100%; /* Position above the bar */
+            left: 50%;
+            transform: translateX(-50%);
+            color: white;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .input-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .input-container input {
+            width: 120px;
+            padding: 10px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+
+        .input-container input:focus {
+            border-color: #0056b3;
+            outline: none;
+        }
+
+        .input-container button {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .input-container button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Tooltip styles */
+        .tooltip {
+            visibility: hidden;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 5px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%; /* Position above the bar */
+            left: 50%;
+            margin-left: -60px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .bar:hover .tooltip {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .error-message {
+            color: red;
+            margin-top: 10px;
+            display: none; /* Initially hidden */
+        }
+
+        .reset-button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background-color: #dc3545;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+
+        .reset-button:hover {
+            background-color: #c82333;
+        }
+
+        @media (max-width: 600px) {
+            .input-container {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .input-container input {
+                margin: 5px 0;
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>Facility Reservation Dashboard</h2>
+        <div class="chart-container" id="chart-container"></div>
+        <div class="input-container">
+            <input type="text" id="facility-name" placeholder="Facility Name">
+            <input type="number" id="reservation-count" placeholder="Reservations" min="1">
+            <button onclick="updateChart()">Add Reservation</button>
+        </div>
+        <div class="error-message" id="error-message"></div>
+        <button class="reset-button" onclick="resetChart()">Reset Chart</button>
+    </div>
+
+    <script>
+        // Initial mock data for the facilities
+        const facilitiesData = [
+            { name: "Community Hall", reservations: 60, color: "#007bff" },
+            { name: "Conference Room", reservations: 30, color: "#28a745" },
+            { name: "Basketball Court", reservations: 80, color: "#dc3545" },
+            { name: "Banquet Hall", reservations: 50, color: "#ffc107" },
+            { name: "Gymnasium", reservations: 40, color: "#17a2b8" },
+        ];
+
+        // Function to display the chart with initial data
+        function displayChart() {
+            const chartContainer = document.getElementById('chart-container');
+            const errorMessage = document.getElementById('error-message');
+
+            // Clear previous content
+            chartContainer.innerHTML = '';
+
+            facilitiesData.forEach(facility => {
+                const bar = document.createElement('div');
+                bar.className = 'bar';
+                bar.style.height = facility.reservations + '%';
+                bar.style.backgroundColor = facility.color;
+                bar.setAttribute('data-label', facility.name);
+                bar.innerHTML = `<span>${facility.reservations}</span><div class="tooltip">${facility.name}: ${facility.reservations}</div>`;
+                bar.onclick = () => showDetails(facility); // Add click event to show details
+                chartContainer.appendChild(bar);
+            });
+        }
+
+        // Function to update the chart with new data
+        function updateChart() {
+            const facilityName = document.getElementById('facility-name').value.trim();
+            const reservationCount = parseInt(document.getElementById('reservation-count').value.trim());
+            const errorMessage = document.getElementById('error-message');
+
+            // Clear previous error message
+            errorMessage.textContent = '';
+
+            // Validate inputs
+            if (!facilityName || isNaN(reservationCount) || reservationCount < 1) {
+                errorMessage.textContent = "Please enter a valid facility name and a positive reservation count.";
+                return;
+            }
+
+            // Check if the facility already exists
+            const existingFacility = facilitiesData.find(f => f.name.toLowerCase() === facilityName.toLowerCase());
+
+            if (existingFacility) {
+                // Update existing facility
+                existingFacility.reservations += reservationCount; // Increment reservation count
+            } else {
+                // Create a new facility
+                const newFacility = {
+                    name: facilityName,
+                    reservations: reservationCount,
+                    color: getRandomColor()
+                };
+                facilitiesData.push(newFacility);
+            }
+
+            // Redisplay the chart
+            displayChart();
+
+            // Clear input fields
+            document.getElementById('facility-name').value = '';
+            document.getElementById('reservation-count').value = '';
+        }
+
+        // Function to show details on click
+        function showDetails(facility) {
+            alert(`Facility: ${facility.name}\nReservations: ${facility.reservations}`);
+        }
+
+        // Function to reset the chart
+        function resetChart() {
+            facilitiesData.length = 0; // Clear all facilities
+            displayChart(); // Redisplay the empty chart
+
+            // Clear input fields
+            document.getElementById('facility-name').value = '';
+            document.getElementById('reservation-count').value = '';
+
+            // Clear error message
+            document.getElementById('error-message').textContent = '';
+        }
+
+        // Function to generate a random color for new bars
+        function getRandomColor() {
+            const letters = '0123456789ABCDEF';
+            let color = '#';
+            for (let i = 0; i < 6; i++) {
+                color += letters[Math.floor(Math.random() * 16)];
+            }
+            return color;
+        }
+
+        // Initial display of the chart
+        displayChart();
+    </script>
+</body>
+</html>
